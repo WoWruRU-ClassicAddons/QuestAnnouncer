@@ -1,136 +1,118 @@
-local L = AceLibrary("AceLocale-2.2"):new("QuestAnnouncer")
+QuestAnnouncer = AceLibrary('AceAddon-2.0'):new('AceConsole-2.0', 'AceEvent-2.0', 'AceDB-2.0' )
+local L = AceLibrary('AceLocale-2.2'):new('QuestAnnouncer')
 
-local options = {
-	type = 'group',
-	args = {
-		debug = {
-			type = 'toggle',
-			name = L["OPT_SHOWDEBUG_NAME"],
-			desc = L["OPT_SHOWDEBUG_DESC"],
-			get = "IsShowDebug",
-			set = "ToggleShowDebug",
-		},
-		announce = {
-			type = 'text',
-			name = L["OPT_ANNOUNCE_NAME"],
-			desc = L["OPT_ANNOUNCE_DESC"],
-			get = "GetAnnounceType",
-			set = "SetAnnounceType",
-			validate = { "addon", "chat", "both", "none" },
-		},
-		display = {
-			type = 'text',
-			name = L["OPT_DISPLAY_NAME"],
-			desc = L["OPT_DISPLAY_DESC"],
-			get = "GetDisplayType",
-			set = "SetDisplayType",
-			validate = { "ui", "chat", "both", "none" },
-		},
-	},
-}
+function QuestAnnouncer:OnInitialize()
+	self.options = {
+		type = 'group',
+		args = {
+			announce = {
+				order = 1,
+				type = 'text',
+				name = L["OPT_ANNOUNCE_NAME"],
+				desc = L["OPT_ANNOUNCE_DESC"],
+				get = function() return self.db.profile.announceType end,
+				set = function(name) self.db.profile.announceType = name
+					if name == 'addon' then
+						self:Print(L["OPT_ANNOUNCE_ADDON"])
+					elseif name == 'chat' then
+						self:Print(L["OPT_ANNOUNCE_CHAT"])
+					elseif name == 'both' then
+						self:Print(L["OPT_ANNOUNCE_BOTH"])
+					elseif name == 'none' then
+						self:Print(L["OPT_ANNOUNCE_NONE"])
+					end
+				end,
+				validate = {['addon'] = L["Addon"], ['chat'] = L["Chat"], ['both'] = L["Both"], ['none'] = L["None"]},
+			},
+			display = {
+				order = 2,
+				type = 'text',
+				name = L["OPT_DISPLAY_NAME"],
+				desc = L["OPT_DISPLAY_DESC"],
+				get = function() return self.db.profile.displayType end,
+				set = function(name) self.db.profile.displayType = name
+					if name == 'ui' then
+						self:Print(L["OPT_DISPLAY_UI"])
+					elseif name == 'chat' then
+						self:Print(L["OPT_DISPLAY_CHAT"])
+					elseif name == 'both' then
+						self:Print(L["OPT_DISPLAY_BOTH"])
+					elseif name == 'none' then
+						self:Print(L["OPT_DISPLAY_NONE"])
+					end
+				end,
+				validate = {['ui'] = L["UI"], ['chat'] = L["Chat"], ['both'] = L["Both"], ['none'] = L["None"]},
+			},
+			debug = {
+				order = 3,
+				type = 'toggle',
+				name = L["OPT_SHOWDEBUG_NAME"],
+				desc = L["OPT_SHOWDEBUG_DESC"],
+				get = function() return self.db.profile.showDebug end,
+				set = function(v) self.db.profile.showDebug = v
+					if self.db.profile.showDebug then
+						self:Print(L["OPT_SHOWDEBUG_ON"])
+					else
+						self:Print(L["OPT_SHOWDEBUG_OFF"])
+					end
+				end,
+			}
+		}
+	}
 
-QuestAnnouncer = AceLibrary("AceAddon-2.0"):new("AceConsole-2.0", "AceEvent-2.0", "AceDB-2.0" )
-QuestAnnouncer:RegisterChatCommand( {L["SLASHCMD_LONG"], L["SLASHCMD_SHORT"]}, options )
-QuestAnnouncer:RegisterDB( "QuestAnnouncerDB", "QuestAnnouncerDBPC" )
-QuestAnnouncer:RegisterDefaults( "profile", {
-	showDebug = false,
-	announcet = "addon",
-	displayt = "both",
-} )
+	self:RegisterChatCommand({'/questannouncer', '/qa'}, self.options)
+	self:RegisterDB('QuestAnnouncerDB')
+	self:RegisterDefaults('profile', {
+		showDebug = false,
+		announceType = 'addon',
+		displayType = 'both',
+	})
+end
 
 function QuestAnnouncer:OnEnable()
-	self:RegisterEvent("CHAT_MSG_ADDON")
-	self:RegisterEvent("UI_INFO_MESSAGE")
+	self:RegisterEvent('CHAT_MSG_ADDON')
+	self:RegisterEvent('UI_INFO_MESSAGE')
 end
 
-function QuestAnnouncer:CHAT_MSG_ADDON( prefix, message, mode, sender )
-	if (prefix == L["ADDON_PREFIX"]) and (message ~= nil) and (mode == "PARTY") and (sender ~= UnitName("player")) then
-		if (self:GetDisplayType() == "ui") or (self:GetDisplayType() == "both") then
-			UIErrorsFrame:AddMessage(sender..": "..message,0.75,1.0,0.5,1.0,UIERRORS_HOLD_TIME)
-		end
-		if (self:GetDisplayType() == "chat") or (self:GetDisplayType() == "both") then
-			self:Print(sender..": "..message)
+function QuestAnnouncer:CHAT_MSG_ADDON(prefix, message, mode, sender)
+	if prefix == self and message and mode == 'PARTY' and sender ~= UnitName('player') then
+		if self.db.profile.displayType == 'ui' or self.db.profile.displayType == 'both' then
+			UIErrorsFrame:AddMessage(sender..': '..message, .75, 1, .5, 1, UIERRORS_HOLD_TIME)
+		elseif self.db.profile.displayType == 'chat' or self.db.profile.displayType == 'both' then
+			self:Print(sender..': '..message)
 		end
 	end
 end
 
-function QuestAnnouncer:UI_INFO_MESSAGE( message )
+function QuestAnnouncer:UI_INFO_MESSAGE(message)
 	-- does the message fits our schema?
-	local questUpdateText = gsub(message,"(.*):%s*([-%d]+)%s*/%s*([-%d]+)%s*$","%1",1)
-	if (questUpdateText ~= message) then
+	local questUpdateText = gsub(message, '(.*):%s*([-%d]+)%s*/%s*([-%d]+)%s*$', '%1', 1)
+	if questUpdateText ~= message then
 		local outmessage
-		local ii, jj, strItemName, iNumItems, iNumNeeded = string.find(message, "(.*):%s*([-%d]+)%s*/%s*([-%d]+)%s*$")
-		local stillneeded = iNumNeeded-iNumItems
+		local _, _, strItemName, iNumItems, iNumNeeded = string.find(message, '(.*):%s*([-%d]+)%s*/%s*([-%d]+)%s*$')
+		local stillneeded = NumNeeded-NumItems
 		if stillneeded < 1 then
-			outmessage=L["FINMSG"];
-			outmessage=string.gsub(outmessage,"$NumItems",iNumItems)
-			outmessage=string.gsub(outmessage,"$NumNeeded",iNumNeeded)
-			outmessage=string.gsub(outmessage,"$ItemName",strItemName)
-			outmessage=string.gsub(outmessage,"$NumLeft",stillneeded)
+			outmessage = L["FINMSG"];
+			outmessage = string.gsub(outmessage, '$NumItems', iNumItems)
+			outmessage = string.gsub(outmessage, '$NumNeeded', iNumNeeded)
+			outmessage = string.gsub(outmessage, '$ItemName', strItemName)
+			outmessage = string.gsub(outmessage, '$NumLeft', stillneeded)
 		end
 		if stillneeded > 0 then
-			outmessage=L["ADVMSG"]
-			outmessage=string.gsub(outmessage,"$NumItems",iNumItems)
-			outmessage=string.gsub(outmessage,"$NumNeeded",iNumNeeded)
-			outmessage=string.gsub(outmessage,"$ItemName",strItemName)
-			outmessage=string.gsub(outmessage,"$NumLeft",stillneeded)
+			outmessage = L["ADVMSG"]
+			outmessage = string.gsub(outmessage, '$NumItems', iNumItems)
+			outmessage = string.gsub(outmessage, '$NumNeeded', iNumNeeded)
+			outmessage = string.gsub(outmessage, '$ItemName', strItemName)
+			outmessage = string.gsub(outmessage, '$NumLeft', stillneeded)
 		end
-		if self:IsShowDebug() then
+		if self.db.profile.showDebug then
 			self:Print(outmessage)
 		end
-		if (GetNumPartyMembers()>0) and (outmessage ~= nil) and ((self:GetAnnounceType() == "chat") or (self:GetAnnounceType() == "both")) then
-			SendChatMessage(outmessage, "PARTY")
+		if GetNumPartyMembers() > 0 and outmessage and (self.db.profile.announceType == 'chat' or self.db.profile.announceType == 'both') then
+			SendChatMessage(outmessage, 'PARTY')
 		end
-		if (GetNumPartyMembers()>0) and (outmessage ~= nil) and ((self:GetAnnounceType() == "addon") or (self:GetAnnounceType() == "both")) then
-			SendAddonMessage(L["ADDON_PREFIX"], outmessage, "PARTY")
+		if GetNumPartyMembers() > 0 and outmessage and (self.db.profile.announceType == 'addon' or self.db.profile.announceType == 'both') then
+			SendAddonMessage(self, outmessage, 'PARTY')
 		end
 	end
 end
-
-function QuestAnnouncer:IsShowDebug()
-	return self.db.profile.showDebug
-end
-
-function QuestAnnouncer:ToggleShowDebug()
-	self.db.profile.showDebug = not self.db.profile.showDebug
-	if self.db.profile.showDebug then
-		self:Print(L["OPT_SHOWDEBUG_ON"])
-	else
-		self:Print(L["OPT_SHOWDEBUG_OFF"])
-	end
-end
-
-function QuestAnnouncer:GetAnnounceType()
-	return self.db.profile.announcet
-end
-
-function QuestAnnouncer:SetAnnounceType(name)
-	self.db.profile.announcet = name
-	if name == "addon" then
-		self:Print(L["OPT_ANNOUNCE_ADDON"])
-	elseif name == "chat" then
-		self:Print(L["OPT_ANNOUNCE_CHAT"])
-	elseif name == "both" then
-		self:Print(L["OPT_ANNOUNCE_BOTH"])
-	elseif name == "none" then
-		self:Print(L["OPT_ANNOUNCE_NONE"])
-	end
-end
-
-function QuestAnnouncer:GetDisplayType()
-	return self.db.profile.displayt
-end
-
-function QuestAnnouncer:SetDisplayType(name)
-	self.db.profile.displayt = name
-	if name == "ui" then
-		self:Print(L["OPT_DISPLAY_UI"])
-	elseif name == "chat" then
-		self:Print(L["OPT_DISPLAY_CHAT"])
-	elseif name == "both" then
-		self:Print(L["OPT_DISPLAY_BOTH"])
-	elseif name == "none" then
-		self:Print(L["OPT_DISPLAY_NONE"])
-	end
-end
-

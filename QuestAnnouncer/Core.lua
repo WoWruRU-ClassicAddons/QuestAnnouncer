@@ -90,7 +90,7 @@ function QuestAnnouncer:UI_INFO_MESSAGE(message)
 	if questUpdateText ~= message then
 		local outmessage
 		local _, _, strItemName, iNumItems, iNumNeeded = string.find(message, '(.*):%s*([-%d]+)%s*/%s*([-%d]+)%s*$')
-		local stillneeded = NumNeeded-NumItems
+		local stillneeded = iNumNeeded-iNumItems
 		if stillneeded < 1 then
 			outmessage = L["FINMSG"];
 			outmessage = string.gsub(outmessage, '$NumItems', iNumItems)

@@ -23,6 +23,6 @@ AceLocale:RegisterTranslations("ruRU", function() return {
 	["Both"] = "Оба",
 	["None"] = "Нет",
 
-	["ADVMSG"] = "$NumItems $ItemName of $NumNeeded ($NumLeft left)",
-	["FINMSG"] = "$NumItems $ItemName of $NumNeeded (done)",
+	["ADVMSG"] = "$ItemName $NumItems/$NumNeeded ($NumLeft осталось)",
+	["FINMSG"] = "$ItemName $NumItems/$NumNeeded (готово)",
 } end)
